@@ -102,7 +102,11 @@
 <div class="card">
   <div id="timer">1:00</div>
   <div class="btn-row"><button id="recordBtn">🔴 Start recording</button></div>
+  <label style="display:flex; align-items:center; gap:8px; margin-top:14px; text-transform:none; font-size:13px;">
+    <input type="checkbox" id="captionToggle" style="width:auto;"> Enable live captions (beta, can conflict with mic on some phones)
+  </label>
   <div id="liveCaption" class="hidden"></div>
+  <div id="debugInfo" style="font-size:11px; color:#7a7e91; margin-top:6px;"></div>
 </div>
 
 <div class="card hidden" id="transcriptCard">
@@ -228,7 +232,12 @@ let recognitionSupported = !!(window.SpeechRecognition || window.webkitSpeechRec
 const liveCaptionEl = document.getElementById('liveCaption');
 
 function startLiveCaption() {
-  if (!recognitionSupported) return;
+  const toggle = document.getElementById('captionToggle');
+  if (!toggle.checked) return;
+  if (!recognitionSupported) {
+    document.getElementById('debugInfo').textContent = 'Live captions not supported in this browser.';
+    return;
+  }
   const SpeechRec = window.SpeechRecognition || window.webkitSpeechRecognition;
   recognition = new SpeechRec();
   recognition.continuous = true;
@@ -249,13 +258,17 @@ function startLiveCaption() {
     liveCaptionEl.innerHTML = finalWords + ' <span class="interim">' + interim + '</span>';
     liveCaptionEl.scrollTop = liveCaptionEl.scrollHeight;
   };
-  recognition.onerror = () => {};
+  recognition.onerror = (e) => {
+    document.getElementById('debugInfo').textContent = 'Caption error: ' + e.error;
+  };
   recognition.onend = () => {
     if (mediaRecorder && mediaRecorder.state === 'recording') {
       try { recognition.start(); } catch (e) {}
     }
   };
-  try { recognition.start(); } catch (e) {}
+  try { recognition.start(); } catch (e) {
+    document.getElementById('debugInfo').textContent = 'Caption failed to start: ' + e.message;
+  }
 }
 function stopLiveCaption() {
   if (recognition) {
@@ -302,6 +315,9 @@ recordBtn.onclick = async () => {
     chunks = [];
     mediaRecorder = new MediaRecorder(stream);
     mediaRecorder.ondataavailable = e => chunks.push(e.data);
+    mediaRecorder.onerror = (e) => {
+      document.getElementById('debugInfo').textContent = 'Recorder error: ' + (e.error ? e.error.message : e);
+    };
     mediaRecorder.onstop = async () => {
       stream.getTracks().forEach(t => t.stop());
       clearInterval(timerInterval);
@@ -310,6 +326,7 @@ recordBtn.onclick = async () => {
       recordBtn.classList.remove('recording');
       timerEl.classList.remove('overtime');
       const blob = new Blob(chunks, { type: 'audio/webm' });
+      document.getElementById('debugInfo').textContent = 'Recorded audio size: ' + (blob.size / 1024).toFixed(1) + ' KB';
       await transcribe(blob);
     };
     mediaRecorder.start();
