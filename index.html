@@ -2,6 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
 <title>Off the Cuff — Free Practice</title>
 <style>
   * { box-sizing: border-box; }
@@ -78,6 +79,17 @@
   .legend { font-size: 12px; color: #9ca0b3; margin-top: 8px; }
   .legend span { margin-right: 14px; }
   .metrics-note { font-size: 12px; color: #7a7e91; margin-top: 10px; }
+  @media (max-width: 480px) {
+    body { padding: 24px 14px 60px; }
+    h1 { font-size: 20px; }
+    .card { padding: 16px; border-radius: 14px; }
+    select, textarea, input { font-size: 16px; padding: 12px; }
+    button { width: 100%; padding: 14px; font-size: 15px; min-height: 48px; }
+    .btn-row { display: flex; }
+    #timer { font-size: 36px; }
+    .score-row { gap: 8px; }
+    .score-num { font-size: 22px; }
+  }
 </style>
 </head>
 <body>
@@ -136,7 +148,14 @@ const categories = {
   "books & reading": ["Physical books versus e-books","A book that changed your perspective","Whether people read less than they used to","Fiction versus non-fiction, which matters more","The last book you couldn't put down","Whether school reading lists should change"],
   "science": ["The most fascinating scientific discovery recently","Whether space exploration is worth the cost","If humans will live on Mars someday","The most interesting fact about the human brain","Whether science and religion can coexist","A scientific myth people still believe"],
   "sports": ["Your favorite sport and why it's exciting","Whether esports should be in the Olympics","Team sports versus individual sports","The most impressive athletic achievement you know of","Whether sports salaries are too high","What makes a great coach"],
-  "travel & culture": ["The most interesting place you've visited or want to visit","Whether tourism helps or harms local culture","Street food versus fine dining","The most surprising cultural difference you've learned about","Solo travel versus traveling with others","What you'd want people to know about your city"]
+  "travel & culture": ["The most interesting place you've visited or want to visit","Whether tourism helps or harms local culture","Street food versus fine dining","The most surprising cultural difference you've learned about","Solo travel versus traveling with others","What you'd want people to know about your city"],
+  "social media & trends": ["Whether influencers deserve the money they make","If you'd rather lose your phone for a week or your wallet","Whether cancel culture actually changes anything","TikTok versus Instagram, which shaped culture more","Whether everyone should post their real face online","If FOMO is worse now than it used to be","Whether short-form videos ruined attention spans","If going viral would actually be a good thing for you","Whether online personas are basically fake","Whether everyone secretly wants to be famous online"],
+  "relationships & vibes": ["Texting versus calling, which shows you care more","Whether opposites really attract","The red flag people ignore the most","If long distance relationships can actually work","Whether you should follow your ex on social media","What makes someone instantly likable","Whether love languages are actually real","Situationships versus just defining the relationship","Whether social media ruins real relationships","What actually makes a first date good or bad"],
+  "food & drinks": ["Pineapple on pizza, yes or no","The most overrated food everyone loves","Home cooked meals versus eating out","Coffee people versus energy drink people","The weirdest food combo that actually works","Fast food you'd never give up","Cooking trends worth trying versus overhyped","Whether food should be judged by looks on social media","Late night snacks versus a proper meal","Spicy food lovers versus people who can't handle spice"],
+  "music & pop culture": ["Whether lyrics or the beat matters more in a song","Concerts versus festivals","If AI-made music can ever feel real","The most overplayed song of the year","Whether physical albums are coming back","A song that instantly changes your mood","Whether music taste says something about someone's personality","Live performances versus studio versions","Whether nostalgia makes old songs seem better than they are","The most surprising music genre crossover you've heard"],
+  "hot takes & would you rather": ["Would you rather be famous or rich","Whether you'd delete social media for a million dollars","Text speed versus text quality, which matters more","Would you rather always be 10 minutes late or 20 minutes early","Whether being left on read should still sting","If you could mute one person's opinions forever, would you","Would you rather never use social media again or never watch movies again","Whether small talk is actually useless","If you'd rather always know the truth or always be comfortable","Would you rather have unlimited money or unlimited time"],
+  "internet & memes": ["Whether memes are a legitimate form of communication","The funniest trend you've seen this year","If brainrot is actually changing how people talk","Whether reaction videos add anything to content","The most iconic meme format of all time","If algorithms know you better than your friends do","Whether inside jokes translate well online","If AI filters have changed how people see themselves","The weirdest internet trend that somehow took off","Whether everything eventually becomes a meme"],
+  "fashion & aesthetics": ["Whether trends move too fast to keep up with","Thrifting versus buying new","The aesthetic that best describes your personality","Whether dressing for yourself versus for others matters more","Sneakers versus any other kind of shoe","Whether fashion says something real about a person","Whether comfort matters more than style","If fashion should be more size inclusive","The most iconic fashion era","Whether social media changed how people dress in real life"]
 };
 
 const categorySelect = document.getElementById('category');
@@ -196,12 +215,15 @@ function playChime() {
 // ---------- Slot-style topic spin ----------
 const topicEl = document.getElementById('topic');
 let spinning = false;
+let lastTopic = null;
 
 document.getElementById('newTopicBtn').onclick = () => {
   if (spinning) return;
   spinning = true;
   const pool = getTopicPool();
-  const finalTopic = pool[Math.floor(Math.random() * pool.length)];
+  const candidates = pool.length > 1 ? pool.filter(t => t !== lastTopic) : pool;
+  const finalTopic = candidates[Math.floor(Math.random() * candidates.length)];
+  lastTopic = finalTopic;
   topicEl.classList.add('spinning');
   document.getElementById('transcriptCard').classList.add('hidden');
   document.getElementById('feedbackCard').classList.add('hidden');
@@ -330,7 +352,7 @@ recordBtn.onclick = async () => {
       await transcribe(blob);
     };
     mediaRecorder.start();
-    startLiveCaption();
+    setTimeout(() => startLiveCaption(), 400);
     recordBtn.textContent = '⏹ Stop recording';
     recordBtn.classList.add('recording');
     timeLeft = 60;
