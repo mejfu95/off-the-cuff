@@ -1,0 +1,489 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Off the Cuff — Free Practice</title>
+<style>
+  * { box-sizing: border-box; }
+  body {
+    font-family: -apple-system, 'Segoe UI', system-ui, sans-serif;
+    max-width: 680px;
+    margin: 0 auto;
+    padding: 40px 20px 80px;
+    min-height: 100vh;
+    color: #eef0f5;
+    background:
+      radial-gradient(circle at 15% 10%, rgba(124,58,237,0.35), transparent 45%),
+      radial-gradient(circle at 85% 20%, rgba(37,99,235,0.30), transparent 45%),
+      radial-gradient(circle at 50% 90%, rgba(236,72,153,0.20), transparent 50%),
+      linear-gradient(180deg, #0b0c14 0%, #0f0f1a 100%);
+    background-attachment: fixed;
+  }
+  h1 { font-size: 22px; font-weight: 600; letter-spacing: -0.02em; margin-bottom: 4px; }
+  .subtitle { color: #9ca0b3; font-size: 13px; margin-bottom: 24px; }
+  .card {
+    background: rgba(255,255,255,0.06);
+    border: 1px solid rgba(255,255,255,0.1);
+    backdrop-filter: blur(20px);
+    -webkit-backdrop-filter: blur(20px);
+    border-radius: 18px;
+    padding: 22px;
+    margin: 16px 0;
+    box-shadow: 0 8px 32px rgba(0,0,0,0.25);
+  }
+  label { font-size: 12px; color: #9ca0b3; display: block; margin-bottom: 6px; text-transform: uppercase; letter-spacing: 0.05em; }
+  select, textarea, input {
+    width: 100%; padding: 10px 12px; border-radius: 10px;
+    border: 1px solid rgba(255,255,255,0.12);
+    background: rgba(0,0,0,0.25); color: #eef0f5; font-size: 14px;
+  }
+  select:focus, textarea:focus, input:focus { outline: none; border-color: rgba(124,58,237,0.6); }
+  textarea { min-height: 110px; margin-top: 4px; resize: vertical; line-height: 1.6; }
+  button {
+    background: linear-gradient(135deg, #7c3aed, #2563eb);
+    color: white; border: none; padding: 11px 20px; border-radius: 12px;
+    cursor: pointer; font-size: 14px; font-weight: 500;
+    transition: transform 0.15s ease, box-shadow 0.15s ease, background 0.2s ease;
+    box-shadow: 0 4px 14px rgba(124,58,237,0.35);
+  }
+  button:hover:not(:disabled) { transform: translateY(-1px); box-shadow: 0 6px 18px rgba(124,58,237,0.45); }
+  button:disabled { background: #33344a; box-shadow: none; cursor: not-allowed; opacity: 0.6; }
+  button.recording { background: linear-gradient(135deg, #ef4444, #dc2626); box-shadow: 0 4px 14px rgba(220,38,38,0.4); animation: pulse 1.4s infinite; }
+  @keyframes pulse { 0%,100% { box-shadow: 0 0 0 0 rgba(220,38,38,0.5); } 50% { box-shadow: 0 0 0 10px rgba(220,38,38,0); } }
+  #topic {
+    font-size: 19px; font-weight: 600; margin: 14px 0; min-height: 30px;
+    text-align: center; transition: opacity 0.05s;
+  }
+  #topic.spinning { color: #a78bfa; }
+  #timer { font-size: 44px; text-align: center; font-variant-numeric: tabular-nums; font-weight: 600; letter-spacing: 0.02em; }
+  #timer.overtime { color: #f87171; }
+  .btn-row { text-align: center; margin-top: 14px; }
+  .hidden { display: none !important; }
+  #liveCaption {
+    margin-top: 14px; min-height: 50px; max-height: 110px; overflow-y: auto;
+    font-size: 15px; line-height: 1.6; color: #d8d9e6;
+    background: rgba(0,0,0,0.2); border-radius: 12px; padding: 10px 14px;
+  }
+  #liveCaption .interim { opacity: 0.55; }
+  #liveCaption .word { animation: wordIn 0.25s ease; display: inline-block; }
+  @keyframes wordIn { from { opacity: 0; transform: translateY(4px); } to { opacity: 1; transform: translateY(0); } }
+  .score-row { display: flex; gap: 12px; margin-bottom: 18px; }
+  .score-box { flex: 1; text-align: center; background: rgba(0,0,0,0.2); border-radius: 14px; padding: 16px 8px; border: 1px solid rgba(255,255,255,0.08); }
+  .score-num { font-size: 28px; font-weight: 700; }
+  .score-label { font-size: 11px; color: #9ca0b3; text-transform: uppercase; letter-spacing: 0.05em; margin-top: 4px; }
+  #feedbackText { white-space: pre-wrap; line-height: 1.7; font-size: 14px; }
+  #highlightedTranscript { white-space: pre-wrap; line-height: 1.8; font-size: 14px; margin-top: 10px; padding: 14px; background: rgba(0,0,0,0.2); border-radius: 12px; }
+  mark.good { background: rgba(52,211,153,0.25); color: #6ee7b7; border-radius: 4px; padding: 1px 3px; }
+  mark.improve { background: rgba(248,113,113,0.25); color: #fca5a5; border-radius: 4px; padding: 1px 3px; }
+  .legend { font-size: 12px; color: #9ca0b3; margin-top: 8px; }
+  .legend span { margin-right: 14px; }
+  .metrics-note { font-size: 12px; color: #7a7e91; margin-top: 10px; }
+</style>
+</head>
+<body>
+
+<h1>🎤 Off the Cuff</h1>
+<div class="subtitle">Free impromptu speaking practice</div>
+
+<div class="card">
+  <label>Groq API key</label>
+  <input type="password" id="apiKey" placeholder="gsk_...">
+</div>
+
+<div class="card">
+  <label>Category</label>
+  <select id="category">
+    <option value="all">All categories (surprise me)</option>
+  </select>
+  <p id="topic">Click "New topic" to start</p>
+  <div class="btn-row"><button id="newTopicBtn">🎰 New topic</button></div>
+</div>
+
+<div class="card">
+  <div id="timer">1:00</div>
+  <div class="btn-row"><button id="recordBtn">🔴 Start recording</button></div>
+  <div id="liveCaption" class="hidden"></div>
+</div>
+
+<div class="card hidden" id="transcriptCard">
+  <label>Transcript (auto-filled, editable)</label>
+  <textarea id="transcript"></textarea>
+  <div class="btn-row"><button id="feedbackBtn">Get feedback</button></div>
+</div>
+
+<div class="card hidden" id="feedbackCard">
+  <div class="score-row" id="scoreRow"></div>
+  <div id="feedbackText"></div>
+  <div id="highlightedTranscript"></div>
+  <div class="legend"><span><mark class="good">green</mark> = strong parts</span><span><mark class="improve">red</mark> = work on this</span></div>
+  <div class="metrics-note" id="metricsNote"></div>
+</div>
+
+<script>
+const categories = {
+  "teaching": ["How would you describe a great teacher","Why the first 5 minutes of class matter","The most effective way to motivate students","How technology has changed classroom management","The hardest situation a teacher can face","What makes a lesson memorable"],
+  "everyday life": ["Your favorite season and why","The most important part of your morning routine","City life versus village life","What you'd do with one extra free day","The most useful skill you've learned recently","A habit you'd like to build this year"],
+  "general knowledge": ["Books versus films, which impacts people more","The biggest benefit of traveling","The hardest part of learning a new language","Whether handwriting still matters today","What makes a city livable"],
+  "personal growth": ["How to build self confidence","The most important lesson learned from failure","The challenges of moving to a new city","One way to cope with social anxiety","The most effective habit for reaching your goals","How to stay motivated on a long project"],
+  "technology": ["Whether smartphones have made life better or worse","The most useful app you've ever used","Whether social media should have age limits","How self-driving cars will change cities","The biggest tech trend of the last five years","Whether privacy still exists online"],
+  "artificial intelligence": ["Whether AI will take more jobs than it creates","How AI will change education","Whether AI-generated art counts as real art","If you'd trust an AI doctor","Whether AI companions are healthy or concerning","How AI might change how we learn languages"],
+  "gaming": ["Whether video games are a legitimate sport","The best game you've ever played and why","Whether gaming helps or hurts social skills","Mobile gaming versus console gaming","Whether loot boxes should be regulated","How gaming has changed in the last decade"],
+  "movies & tv": ["A movie that changed how you see something","Whether streaming killed the movie theater","Book adaptations versus the original book","The most overrated movie genre","Whether spoilers really ruin a story","A show you think everyone should watch"],
+  "books & reading": ["Physical books versus e-books","A book that changed your perspective","Whether people read less than they used to","Fiction versus non-fiction, which matters more","The last book you couldn't put down","Whether school reading lists should change"],
+  "science": ["The most fascinating scientific discovery recently","Whether space exploration is worth the cost","If humans will live on Mars someday","The most interesting fact about the human brain","Whether science and religion can coexist","A scientific myth people still believe"],
+  "sports": ["Your favorite sport and why it's exciting","Whether esports should be in the Olympics","Team sports versus individual sports","The most impressive athletic achievement you know of","Whether sports salaries are too high","What makes a great coach"],
+  "travel & culture": ["The most interesting place you've visited or want to visit","Whether tourism helps or harms local culture","Street food versus fine dining","The most surprising cultural difference you've learned about","Solo travel versus traveling with others","What you'd want people to know about your city"]
+};
+
+const categorySelect = document.getElementById('category');
+Object.keys(categories).forEach(c => {
+  const opt = document.createElement('option');
+  opt.value = c; opt.textContent = c;
+  categorySelect.appendChild(opt);
+});
+
+const apiKeyInput = document.getElementById('apiKey');
+apiKeyInput.value = localStorage.getItem('groq_api_key') || '';
+apiKeyInput.addEventListener('input', () => localStorage.setItem('groq_api_key', apiKeyInput.value));
+
+function getTopicPool() {
+  const cat = categorySelect.value;
+  if (cat === 'all') return Object.values(categories).flat();
+  return categories[cat];
+}
+
+// ---------- Web Audio: casino tick / chime ----------
+let audioCtx;
+function getAudioCtx() {
+  if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+  return audioCtx;
+}
+function playTick(freq) {
+  try {
+    const ctx = getAudioCtx();
+    const osc = ctx.createOscillator();
+    const gain = ctx.createGain();
+    osc.frequency.value = freq;
+    osc.type = 'square';
+    gain.gain.setValueAtTime(0.12, ctx.currentTime);
+    gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.09);
+    osc.connect(gain); gain.connect(ctx.destination);
+    osc.start(); osc.stop(ctx.currentTime + 0.09);
+  } catch (e) {}
+}
+function playChime() {
+  try {
+    const ctx = getAudioCtx();
+    [880, 1174].forEach((f, i) => {
+      const osc = ctx.createOscillator();
+      const gain = ctx.createGain();
+      osc.frequency.value = f;
+      osc.type = 'sine';
+      const t0 = ctx.currentTime + i * 0.12;
+      gain.gain.setValueAtTime(0.0001, t0);
+      gain.gain.exponentialRampToValueAtTime(0.22, t0 + 0.02);
+      gain.gain.exponentialRampToValueAtTime(0.0001, t0 + 0.45);
+      osc.connect(gain); gain.connect(ctx.destination);
+      osc.start(t0); osc.stop(t0 + 0.45);
+    });
+  } catch (e) {}
+}
+
+// ---------- Slot-style topic spin ----------
+const topicEl = document.getElementById('topic');
+let spinning = false;
+
+document.getElementById('newTopicBtn').onclick = () => {
+  if (spinning) return;
+  spinning = true;
+  const pool = getTopicPool();
+  const finalTopic = pool[Math.floor(Math.random() * pool.length)];
+  topicEl.classList.add('spinning');
+  document.getElementById('transcriptCard').classList.add('hidden');
+  document.getElementById('feedbackCard').classList.add('hidden');
+
+  let step = 0;
+  const totalSteps = 34;
+  function spinStep() {
+    if (step >= totalSteps) {
+      topicEl.textContent = finalTopic;
+      topicEl.classList.remove('spinning');
+      spinning = false;
+      playChime();
+      return;
+    }
+    topicEl.textContent = pool[Math.floor(Math.random() * pool.length)];
+    playTick(500 + Math.random() * 300);
+    step++;
+    const progress = step / totalSteps;
+    const delay = 45 + Math.pow(progress, 3) * 480; // slow, dramatic ease-out
+    setTimeout(spinStep, delay);
+  }
+  spinStep();
+};
+
+// ---------- Live word-by-word captions (Web Speech API) ----------
+let recognition = null;
+let recognitionSupported = !!(window.SpeechRecognition || window.webkitSpeechRecognition);
+const liveCaptionEl = document.getElementById('liveCaption');
+
+function startLiveCaption() {
+  if (!recognitionSupported) return;
+  const SpeechRec = window.SpeechRecognition || window.webkitSpeechRecognition;
+  recognition = new SpeechRec();
+  recognition.continuous = true;
+  recognition.interimResults = true;
+  recognition.lang = 'en-US';
+  let finalText = '';
+  liveCaptionEl.classList.remove('hidden');
+  liveCaptionEl.innerHTML = '';
+  recognition.onresult = (event) => {
+    let interim = '';
+    for (let i = event.resultIndex; i < event.results.length; i++) {
+      const piece = event.results[i][0].transcript;
+      if (event.results[i].isFinal) finalText += piece + ' ';
+      else interim += piece;
+    }
+    const finalWords = finalText.trim().split(/\s+/).filter(Boolean)
+      .map(w => '<span class="word">' + w + '</span>').join(' ');
+    liveCaptionEl.innerHTML = finalWords + ' <span class="interim">' + interim + '</span>';
+    liveCaptionEl.scrollTop = liveCaptionEl.scrollHeight;
+  };
+  recognition.onerror = () => {};
+  recognition.onend = () => {
+    if (mediaRecorder && mediaRecorder.state === 'recording') {
+      try { recognition.start(); } catch (e) {}
+    }
+  };
+  try { recognition.start(); } catch (e) {}
+}
+function stopLiveCaption() {
+  if (recognition) {
+    recognition.onend = null;
+    try { recognition.stop(); } catch (e) {}
+  }
+}
+
+// ---------- Recording + timer ----------
+let mediaRecorder, chunks = [], timerInterval, timeLeft = 60, overtime = false;
+const recordBtn = document.getElementById('recordBtn');
+const timerEl = document.getElementById('timer');
+
+function formatTime(s) {
+  const abs = Math.abs(s);
+  const m = Math.floor(abs / 60), sec = abs % 60;
+  return m + ':' + String(sec).padStart(2, '0');
+}
+
+function tick() {
+  if (!overtime) {
+    timeLeft--;
+    if (timeLeft <= 0) {
+      overtime = true;
+      timeLeft = 0;
+      timerEl.classList.add('overtime');
+      recordBtn.classList.add('recording');
+      recordBtn.textContent = '⏹ Stop (overtime)';
+    }
+    timerEl.textContent = formatTime(timeLeft);
+  } else {
+    timeLeft++;
+    timerEl.textContent = '+' + formatTime(timeLeft);
+  }
+}
+
+recordBtn.onclick = async () => {
+  if (mediaRecorder && mediaRecorder.state === 'recording') {
+    mediaRecorder.stop();
+    return;
+  }
+  try {
+    const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+    chunks = [];
+    mediaRecorder = new MediaRecorder(stream);
+    mediaRecorder.ondataavailable = e => chunks.push(e.data);
+    mediaRecorder.onstop = async () => {
+      stream.getTracks().forEach(t => t.stop());
+      clearInterval(timerInterval);
+      stopLiveCaption();
+      recordBtn.textContent = '🔴 Start recording';
+      recordBtn.classList.remove('recording');
+      timerEl.classList.remove('overtime');
+      const blob = new Blob(chunks, { type: 'audio/webm' });
+      await transcribe(blob);
+    };
+    mediaRecorder.start();
+    startLiveCaption();
+    recordBtn.textContent = '⏹ Stop recording';
+    recordBtn.classList.add('recording');
+    timeLeft = 60;
+    overtime = false;
+    timerEl.classList.remove('overtime');
+    timerEl.textContent = formatTime(timeLeft);
+    timerInterval = setInterval(tick, 1000);
+  } catch (e) {
+    alert('Microphone access denied or unavailable: ' + e.message);
+  }
+};
+
+async function transcribe(blob) {
+  const key = apiKeyInput.value.trim();
+  if (!key) { alert('Paste your Groq API key first.'); return; }
+  const form = new FormData();
+  form.append('file', blob, 'recording.webm');
+  form.append('model', 'whisper-large-v3-turbo');
+  document.getElementById('transcriptCard').classList.remove('hidden');
+  document.getElementById('transcript').value = 'Transcribing...';
+  try {
+    const res = await fetch('https://api.groq.com/openai/v1/audio/transcriptions', {
+      method: 'POST',
+      headers: { 'Authorization': 'Bearer ' + key },
+      body: form
+    });
+    const data = await res.json();
+    document.getElementById('transcript').value = data.text || 'Could not transcribe. Try again.';
+  } catch (e) {
+    document.getElementById('transcript').value = 'Error: ' + e.message;
+  }
+}
+
+// ---------- Deterministic linguistic metrics (grounds the scoring) ----------
+function analyzeText(transcript) {
+  const words = transcript.trim().split(/\s+/).filter(Boolean);
+  const wordCount = Math.max(words.length, 1);
+  const lower = transcript.toLowerCase();
+
+  function countPhrases(list) {
+    let total = 0;
+    list.forEach(p => {
+      const re = new RegExp('\\b' + p.replace(/ /g, '\\s+') + '\\b', 'g');
+      const m = lower.match(re);
+      if (m) total += m.length;
+    });
+    return total;
+  }
+
+  const fillerCount = countPhrases(['um','uh','er','ah','like','you know','kind of','sort of','actually','basically','literally','i mean']);
+  const hedgeCount = countPhrases(['i think','i guess','maybe','probably','not sure','might','i suppose','i feel like']);
+  const transitionCount = countPhrases(['first','second','third','finally','however','because','therefore','for example','in addition','also','overall','in conclusion','moreover','furthermore','so then']);
+
+  const sentences = transcript.split(/[.!?]+/).map(s => s.trim()).filter(Boolean);
+  const sentenceCount = Math.max(sentences.length, 1);
+  const avgSentenceLength = +(wordCount / sentenceCount).toFixed(1);
+  const uniqueWords = new Set(words.map(w => w.toLowerCase().replace(/[^a-z']/g, ''))).size;
+  const uniqueRatio = +(uniqueWords / wordCount).toFixed(2);
+  const fillerRate = +((fillerCount / wordCount) * 100).toFixed(1);
+
+  return { wordCount, fillerCount, fillerRate, hedgeCount, transitionCount, sentenceCount, avgSentenceLength, uniqueRatio };
+}
+
+function baselineScores(m) {
+  let clarity = 100 - Math.max(0, m.fillerCount - 1) * 4
+    - (m.avgSentenceLength > 28 ? 12 : 0)
+    - (m.avgSentenceLength < 6 ? 10 : 0)
+    - (m.uniqueRatio < 0.45 ? 8 : 0);
+  clarity = Math.max(0, Math.min(100, Math.round(clarity)));
+
+  let structure = 25 + Math.min(m.transitionCount, 6) * 9 + (m.sentenceCount >= 4 ? 15 : 0);
+  structure = Math.max(0, Math.min(100, Math.round(structure)));
+
+  let presence = 100 - m.hedgeCount * 6 - Math.max(0, m.fillerCount - 2) * 3;
+  presence = Math.max(0, Math.min(100, Math.round(presence)));
+
+  return { clarity, structure, presence };
+}
+
+// ---------- Feedback ----------
+document.getElementById('feedbackBtn').onclick = async () => {
+  const key = apiKeyInput.value.trim();
+  const topic = topicEl.textContent;
+  const transcript = document.getElementById('transcript').value.trim();
+  if (!key || !transcript) return;
+
+  const feedbackCard = document.getElementById('feedbackCard');
+  const scoreRow = document.getElementById('scoreRow');
+  const feedbackText = document.getElementById('feedbackText');
+  const highlightedBox = document.getElementById('highlightedTranscript');
+  const metricsNote = document.getElementById('metricsNote');
+  feedbackCard.classList.remove('hidden');
+  scoreRow.innerHTML = '';
+  feedbackText.textContent = 'Analyzing...';
+  highlightedBox.textContent = '';
+  metricsNote.textContent = '';
+
+  const m = analyzeText(transcript);
+  const b = baselineScores(m);
+
+  const prompt = `You are a rigorous speaking coach scoring a 1-minute impromptu speech. Be honest and specific, not generic or flattering.
+
+Topic: "${topic}"
+Transcript: "${transcript}"
+
+Computed linguistic metrics (calculated deterministically, use these as your PRIMARY scoring basis, not vibes):
+- Word count: ${m.wordCount}
+- Filler words (um, uh, like, you know, kind of, actually, etc): ${m.fillerCount} (${m.fillerRate}% of words)
+- Hedging phrases (I think, maybe, probably, not sure, etc): ${m.hedgeCount}
+- Transition/structuring words (first, however, because, for example, etc): ${m.transitionCount}
+- Sentences: ${m.sentenceCount}, average length: ${m.avgSentenceLength} words/sentence
+- Vocabulary diversity (unique word ratio): ${m.uniqueRatio}
+
+Baseline scores computed from a fixed rubric applied to these metrics:
+- Clarity baseline: ${b.clarity} (penalizes filler rate, rambling or overly choppy sentences, low vocabulary diversity)
+- Structure baseline: ${b.structure} (rewards transition words and enough sentences to show developed points)
+- Presence baseline: ${b.presence} (penalizes hedging language and excess filler, which read as low confidence)
+
+Your task: read the actual content and adjust each baseline by at most ±10 points based on things the formula cannot see — whether the answer was actually on-topic, whether ideas were developed with reasoning/examples or just listed, whether the logic holds together, whether the tone reads confident. Output the final adjusted integer score for each category. Do NOT round to multiples of 10 — use precise numbers (e.g. 74, 63, 88) that reflect the baseline plus your adjustment.
+
+Respond with ONLY valid JSON, no markdown fences, no extra text, matching exactly this schema:
+{
+  "scores": {"clarity": <integer>, "structure": <integer>, "presence": <integer>},
+  "overall_feedback": "<3-5 sentences, written as direct imperative instructions ('Open with...', 'Cut the...', 'Add a...', 'Stop hedging on...') rather than describing what they did. Reference at least one specific number from the metrics above (e.g. filler rate or transition count) to justify a point.>",
+  "highlights": [
+    {"text": "<exact short substring copied verbatim from the transcript, 3-10 words>", "type": "good", "note": "<3-6 word reason>"},
+    {"text": "<exact short substring copied verbatim from the transcript, 3-10 words>", "type": "improve", "note": "<3-6 word reason>"}
+  ]
+}
+Include 2-4 "good" highlights and 2-4 "improve" highlights, each copied character-for-character from the transcript.`;
+
+  try {
+    const res = await fetch('https://api.groq.com/openai/v1/chat/completions', {
+      method: 'POST',
+      headers: { 'Authorization': 'Bearer ' + key, 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        model: 'openai/gpt-oss-120b',
+        messages: [{ role: 'user', content: prompt }],
+        temperature: 0.3
+      })
+    });
+    const data = await res.json();
+    let raw = data.choices?.[0]?.message?.content || '{}';
+    raw = raw.trim().replace(/^```json/, '').replace(/^```/, '').replace(/```$/, '').trim();
+    const parsed = JSON.parse(raw);
+
+    const labels = { clarity: 'Clarity', structure: 'Structure', presence: 'Presence' };
+    scoreRow.innerHTML = Object.keys(labels).map(k => {
+      const val = parsed.scores?.[k] ?? '-';
+      const color = val >= 80 ? '#6ee7b7' : val >= 60 ? '#fbbf24' : '#fca5a5';
+      return `<div class="score-box"><div class="score-num" style="color:${color}">${val}</div><div class="score-label">${labels[k]}</div></div>`;
+    }).join('');
+
+    feedbackText.textContent = parsed.overall_feedback || 'No feedback returned.';
+
+    let highlighted = transcript;
+    (parsed.highlights || []).forEach(h => {
+      if (!h.text) return;
+      const escaped = h.text.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+      const re = new RegExp(escaped);
+      const cls = h.type === 'good' ? 'good' : 'improve';
+      highlighted = highlighted.replace(re, `<mark class="${cls}" title="${(h.note || '').replace(/"/g, '')}">${h.text}</mark>`);
+    });
+    highlightedBox.innerHTML = highlighted;
+
+    metricsNote.textContent = `Based on: ${m.fillerRate}% filler words, ${m.hedgeCount} hedging phrases, ${m.transitionCount} transitions, avg ${m.avgSentenceLength} words/sentence.`;
+  } catch (e) {
+    feedbackText.textContent = 'Error parsing feedback: ' + e.message;
+  }
+};
+</script>
+</body>
+</html>
