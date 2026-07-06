@@ -42,10 +42,11 @@
   textarea { min-height: 110px; margin-top: 4px; resize: vertical; line-height: 1.6; }
   button {
     background: linear-gradient(135deg, #7c3aed, #2563eb);
-    color: white; border: none; padding: 11px 20px; border-radius: 12px;
-    cursor: pointer; font-size: 14px; font-weight: 500;
+    color: white; border: none; padding: 13px 20px; border-radius: 12px;
+    cursor: pointer; font-size: 15px; font-weight: 500;
     transition: transform 0.15s ease, box-shadow 0.15s ease, background 0.2s ease;
     box-shadow: 0 4px 14px rgba(124,58,237,0.35);
+    width: 100%; min-height: 48px;
   }
   button:hover:not(:disabled) { transform: translateY(-1px); box-shadow: 0 6px 18px rgba(124,58,237,0.45); }
   button:disabled { background: #33344a; box-shadow: none; cursor: not-allowed; opacity: 0.6; }
@@ -58,7 +59,7 @@
   #topic.spinning { color: #a78bfa; }
   #timer { font-size: 44px; text-align: center; font-variant-numeric: tabular-nums; font-weight: 600; letter-spacing: 0.02em; }
   #timer.overtime { color: #f87171; }
-  .btn-row { text-align: center; margin-top: 14px; }
+  .btn-row { display: flex; margin-top: 14px; }
   .hidden { display: none !important; }
   #liveCaption {
     margin-top: 14px; min-height: 50px; max-height: 110px; overflow-y: auto;
@@ -84,8 +85,6 @@
     h1 { font-size: 20px; }
     .card { padding: 16px; border-radius: 14px; }
     select, textarea, input { font-size: 16px; padding: 12px; }
-    button { width: 100%; padding: 14px; font-size: 15px; min-height: 48px; }
-    .btn-row { display: flex; }
     #timer { font-size: 36px; }
     .score-row { gap: 8px; }
     .score-num { font-size: 22px; }
@@ -153,7 +152,7 @@ const categories = {
   "relationships & vibes": ["Texting versus calling, which shows you care more","Whether opposites really attract","The red flag people ignore the most","If long distance relationships can actually work","Whether you should follow your ex on social media","What makes someone instantly likable","Whether love languages are actually real","Situationships versus just defining the relationship","Whether social media ruins real relationships","What actually makes a first date good or bad"],
   "food & drinks": ["Pineapple on pizza, yes or no","The most overrated food everyone loves","Home cooked meals versus eating out","Coffee people versus energy drink people","The weirdest food combo that actually works","Fast food you'd never give up","Cooking trends worth trying versus overhyped","Whether food should be judged by looks on social media","Late night snacks versus a proper meal","Spicy food lovers versus people who can't handle spice"],
   "music & pop culture": ["Whether lyrics or the beat matters more in a song","Concerts versus festivals","If AI-made music can ever feel real","The most overplayed song of the year","Whether physical albums are coming back","A song that instantly changes your mood","Whether music taste says something about someone's personality","Live performances versus studio versions","Whether nostalgia makes old songs seem better than they are","The most surprising music genre crossover you've heard"],
-  "hot takes & would you rather": ["Would you rather be famous or rich","Whether you'd delete social media for a million dollars","Text speed versus text quality, which matters more","Would you rather always be 10 minutes late or 20 minutes early","Whether being left on read should still sting","If you could mute one person's opinions forever, would you","Would you rather never use social media again or never watch movies again","Whether small talk is actually useless","If you'd rather always know the truth or always be comfortable","Would you rather have unlimited money or unlimited time"],
+  "hot takes & would you rather": ["Would you rather be famous or rich","Whether you'd delete social media for a million dollars","Text speed versus text quality, which matters more","Would you rather always be 10 minutes late or 20 minutes early","Whether being left on read should still sting","If you could mute one person's opinions forever, would you","Would you rather never use social media again or never watch movies again","Whether small talk is actually useless","If you'd rather always know the truth or always be comfortable","Would you rather have unlimited money or unlimited time","Would you rather be Spider-Man or Thor for a day","Would you rather have Iron Man's suit or Captain America's shield","Would you rather fly like Superman or turn invisible","Would you rather have Batman's gadgets or the Hulk's strength","Would you rather always know when someone is lying to you or be able to lie undetected yourself","Would you rather know the exact date you'll die or never know at all","Would you rather read minds or predict the future","Would you rather have to always say what you're thinking or never speak again","Would you rather give up a personal dream to help many strangers or keep it and help no one","Would you rather be able to fix one person's life completely or slightly improve a hundred lives"],
   "internet & memes": ["Whether memes are a legitimate form of communication","The funniest trend you've seen this year","If brainrot is actually changing how people talk","Whether reaction videos add anything to content","The most iconic meme format of all time","If algorithms know you better than your friends do","Whether inside jokes translate well online","If AI filters have changed how people see themselves","The weirdest internet trend that somehow took off","Whether everything eventually becomes a meme"],
   "fashion & aesthetics": ["Whether trends move too fast to keep up with","Thrifting versus buying new","The aesthetic that best describes your personality","Whether dressing for yourself versus for others matters more","Sneakers versus any other kind of shoe","Whether fashion says something real about a person","Whether comfort matters more than style","If fashion should be more size inclusive","The most iconic fashion era","Whether social media changed how people dress in real life"]
 };
@@ -283,6 +282,15 @@ function startLiveCaption() {
   recognition.onerror = (e) => {
     document.getElementById('debugInfo').textContent = 'Caption error: ' + e.error;
   };
+  recognition.onstart = () => {
+    document.getElementById('debugInfo').textContent = 'Caption listening...';
+  };
+  recognition.onspeechstart = () => {
+    document.getElementById('debugInfo').textContent = 'Caption: speech detected';
+  };
+  recognition.onaudiostart = () => {
+    document.getElementById('debugInfo').textContent = 'Caption: mic connected, listening...';
+  };
   recognition.onend = () => {
     if (mediaRecorder && mediaRecorder.state === 'recording') {
       try { recognition.start(); } catch (e) {}
@@ -333,6 +341,11 @@ recordBtn.onclick = async () => {
     return;
   }
   try {
+    const captionOn = document.getElementById('captionToggle').checked;
+    if (captionOn) {
+      startLiveCaption();
+      await new Promise(r => setTimeout(r, 350));
+    }
     const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
     chunks = [];
     mediaRecorder = new MediaRecorder(stream);
@@ -352,7 +365,6 @@ recordBtn.onclick = async () => {
       await transcribe(blob);
     };
     mediaRecorder.start();
-    setTimeout(() => startLiveCaption(), 400);
     recordBtn.textContent = '⏹ Stop recording';
     recordBtn.classList.add('recording');
     timeLeft = 60;
