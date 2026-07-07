@@ -21,7 +21,13 @@
     background-attachment: fixed;
   }
   h1 { font-size: 22px; font-weight: 600; letter-spacing: -0.02em; margin-bottom: 4px; }
-  .subtitle { color: #9ca0b3; font-size: 13px; margin-bottom: 24px; }
+  .subtitle { color: #9ca0b3; font-size: 13px; margin-bottom: 18px; }
+  .lang-toggle { display: flex; gap: 8px; margin-bottom: 20px; }
+  .lang-toggle button {
+    flex: 1; width: auto; padding: 9px; font-size: 13px; min-height: 38px;
+    background: rgba(255,255,255,0.08); box-shadow: none;
+  }
+  .lang-toggle button.active { background: linear-gradient(135deg, #16a34a, #15803d); }
   .card {
     background: rgba(255,255,255,0.06);
     border: 1px solid rgba(255,255,255,0.1);
@@ -34,9 +40,9 @@
   }
   label { font-size: 12px; color: #9ca0b3; display: block; margin-bottom: 6px; text-transform: uppercase; letter-spacing: 0.05em; }
   select, textarea, input {
-    width: 100%; padding: 10px 12px; border-radius: 10px;
+    width: 100%; padding: 12px; border-radius: 10px;
     border: 1px solid rgba(255,255,255,0.12);
-    background: rgba(0,0,0,0.25); color: #eef0f5; font-size: 14px;
+    background: rgba(0,0,0,0.25); color: #eef0f5; font-size: 16px;
   }
   select:focus, textarea:focus, input:focus { outline: none; border-color: rgba(124,58,237,0.6); }
   textarea { min-height: 110px; margin-top: 4px; resize: vertical; line-height: 1.6; }
@@ -80,32 +86,29 @@
   .legend { font-size: 12px; color: #9ca0b3; margin-top: 8px; }
   .legend span { margin-right: 14px; }
   .metrics-note { font-size: 12px; color: #7a7e91; margin-top: 10px; }
-  @media (max-width: 480px) {
-    body { padding: 24px 14px 60px; }
-    h1 { font-size: 20px; }
-    .card { padding: 16px; border-radius: 14px; }
-    select, textarea, input { font-size: 16px; padding: 12px; }
-    #timer { font-size: 36px; }
-    .score-row { gap: 8px; }
-    .score-num { font-size: 22px; }
-  }
+  .caption-label { display: flex; align-items: center; gap: 8px; margin-top: 14px; text-transform: none; font-size: 13px; }
+  .caption-label input { width: auto; }
+  #debugInfo { font-size: 11px; color: #7a7e91; margin-top: 6px; }
 </style>
 </head>
 <body>
 
-<h1>🎤 Off the Cuff</h1>
-<div class="subtitle">Free impromptu speaking practice</div>
+<div class="lang-toggle">
+  <button id="langEN" class="active">🇬🇧 EN</button>
+  <button id="langTR">🇹🇷 TR</button>
+</div>
+
+<h1 id="titleEl">🎤 Off the Cuff</h1>
+<div class="subtitle" id="subtitleEl">Free impromptu speaking practice</div>
 
 <div class="card">
-  <label>Groq API key</label>
+  <label id="apiKeyLabel">Groq API key</label>
   <input type="password" id="apiKey" placeholder="gsk_...">
 </div>
 
 <div class="card">
-  <label>Category</label>
-  <select id="category">
-    <option value="all">All categories (surprise me)</option>
-  </select>
+  <label id="categoryLabel">Category</label>
+  <select id="category"></select>
   <p id="topic">Click "New topic" to start</p>
   <div class="btn-row"><button id="newTopicBtn">🎰 New topic</button></div>
 </div>
@@ -113,15 +116,13 @@
 <div class="card">
   <div id="timer">1:00</div>
   <div class="btn-row"><button id="recordBtn">🔴 Start recording</button></div>
-  <label style="display:flex; align-items:center; gap:8px; margin-top:14px; text-transform:none; font-size:13px;">
-    <input type="checkbox" id="captionToggle" style="width:auto;"> Enable live captions (beta, can conflict with mic on some phones)
-  </label>
+  <label class="caption-label"><input type="checkbox" id="captionToggle"><span id="captionLabelText">Enable live captions (beta, can conflict with mic on some phones)</span></label>
   <div id="liveCaption" class="hidden"></div>
-  <div id="debugInfo" style="font-size:11px; color:#7a7e91; margin-top:6px;"></div>
+  <div id="debugInfo"></div>
 </div>
 
 <div class="card hidden" id="transcriptCard">
-  <label>Transcript (auto-filled, editable)</label>
+  <label id="transcriptLabel">Transcript (auto-filled, editable)</label>
   <textarea id="transcript"></textarea>
   <div class="btn-row"><button id="feedbackBtn">Get feedback</button></div>
 </div>
@@ -130,48 +131,176 @@
   <div class="score-row" id="scoreRow"></div>
   <div id="feedbackText"></div>
   <div id="highlightedTranscript"></div>
-  <div class="legend"><span><mark class="good">green</mark> = strong parts</span><span><mark class="improve">red</mark> = work on this</span></div>
+  <div class="legend"><span><mark class="good">green</mark> <span id="legendGoodText">= strong parts</span></span><span><mark class="improve">red</mark> <span id="legendImproveText">= work on this</span></span></div>
   <div class="metrics-note" id="metricsNote"></div>
 </div>
 
 <script>
-const categories = {
-  "teaching": ["How would you describe a great teacher","Why the first 5 minutes of class matter","The most effective way to motivate students","How technology has changed classroom management","The hardest situation a teacher can face","What makes a lesson memorable"],
-  "everyday life": ["Your favorite season and why","The most important part of your morning routine","City life versus village life","What you'd do with one extra free day","The most useful skill you've learned recently","A habit you'd like to build this year"],
-  "general knowledge": ["Books versus films, which impacts people more","The biggest benefit of traveling","The hardest part of learning a new language","Whether handwriting still matters today","What makes a city livable"],
-  "personal growth": ["How to build self confidence","The most important lesson learned from failure","The challenges of moving to a new city","One way to cope with social anxiety","The most effective habit for reaching your goals","How to stay motivated on a long project"],
-  "technology": ["Whether smartphones have made life better or worse","The most useful app you've ever used","Whether social media should have age limits","How self-driving cars will change cities","The biggest tech trend of the last five years","Whether privacy still exists online"],
-  "artificial intelligence": ["Whether AI will take more jobs than it creates","How AI will change education","Whether AI-generated art counts as real art","If you'd trust an AI doctor","Whether AI companions are healthy or concerning","How AI might change how we learn languages"],
-  "gaming": ["Whether video games are a legitimate sport","The best game you've ever played and why","Whether gaming helps or hurts social skills","Mobile gaming versus console gaming","Whether loot boxes should be regulated","How gaming has changed in the last decade"],
-  "movies & tv": ["A movie that changed how you see something","Whether streaming killed the movie theater","Book adaptations versus the original book","The most overrated movie genre","Whether spoilers really ruin a story","A show you think everyone should watch"],
-  "books & reading": ["Physical books versus e-books","A book that changed your perspective","Whether people read less than they used to","Fiction versus non-fiction, which matters more","The last book you couldn't put down","Whether school reading lists should change"],
-  "science": ["The most fascinating scientific discovery recently","Whether space exploration is worth the cost","If humans will live on Mars someday","The most interesting fact about the human brain","Whether science and religion can coexist","A scientific myth people still believe"],
-  "sports": ["Your favorite sport and why it's exciting","Whether esports should be in the Olympics","Team sports versus individual sports","The most impressive athletic achievement you know of","Whether sports salaries are too high","What makes a great coach"],
-  "travel & culture": ["The most interesting place you've visited or want to visit","Whether tourism helps or harms local culture","Street food versus fine dining","The most surprising cultural difference you've learned about","Solo travel versus traveling with others","What you'd want people to know about your city"],
-  "social media & trends": ["Whether influencers deserve the money they make","If you'd rather lose your phone for a week or your wallet","Whether cancel culture actually changes anything","TikTok versus Instagram, which shaped culture more","Whether everyone should post their real face online","If FOMO is worse now than it used to be","Whether short-form videos ruined attention spans","If going viral would actually be a good thing for you","Whether online personas are basically fake","Whether everyone secretly wants to be famous online"],
-  "relationships & vibes": ["Texting versus calling, which shows you care more","Whether opposites really attract","The red flag people ignore the most","If long distance relationships can actually work","Whether you should follow your ex on social media","What makes someone instantly likable","Whether love languages are actually real","Situationships versus just defining the relationship","Whether social media ruins real relationships","What actually makes a first date good or bad"],
-  "food & drinks": ["Pineapple on pizza, yes or no","The most overrated food everyone loves","Home cooked meals versus eating out","Coffee people versus energy drink people","The weirdest food combo that actually works","Fast food you'd never give up","Cooking trends worth trying versus overhyped","Whether food should be judged by looks on social media","Late night snacks versus a proper meal","Spicy food lovers versus people who can't handle spice"],
-  "music & pop culture": ["Whether lyrics or the beat matters more in a song","Concerts versus festivals","If AI-made music can ever feel real","The most overplayed song of the year","Whether physical albums are coming back","A song that instantly changes your mood","Whether music taste says something about someone's personality","Live performances versus studio versions","Whether nostalgia makes old songs seem better than they are","The most surprising music genre crossover you've heard"],
-  "hot takes & would you rather": ["Would you rather be famous or rich","Whether you'd delete social media for a million dollars","Text speed versus text quality, which matters more","Would you rather always be 10 minutes late or 20 minutes early","Whether being left on read should still sting","If you could mute one person's opinions forever, would you","Would you rather never use social media again or never watch movies again","Whether small talk is actually useless","If you'd rather always know the truth or always be comfortable","Would you rather have unlimited money or unlimited time","Would you rather be Spider-Man or Thor for a day","Would you rather have Iron Man's suit or Captain America's shield","Would you rather fly like Superman or turn invisible","Would you rather have Batman's gadgets or the Hulk's strength","Would you rather always know when someone is lying to you or be able to lie undetected yourself","Would you rather know the exact date you'll die or never know at all","Would you rather read minds or predict the future","Would you rather have to always say what you're thinking or never speak again","Would you rather give up a personal dream to help many strangers or keep it and help no one","Would you rather be able to fix one person's life completely or slightly improve a hundred lives"],
-  "internet & memes": ["Whether memes are a legitimate form of communication","The funniest trend you've seen this year","If brainrot is actually changing how people talk","Whether reaction videos add anything to content","The most iconic meme format of all time","If algorithms know you better than your friends do","Whether inside jokes translate well online","If AI filters have changed how people see themselves","The weirdest internet trend that somehow took off","Whether everything eventually becomes a meme"],
-  "fashion & aesthetics": ["Whether trends move too fast to keep up with","Thrifting versus buying new","The aesthetic that best describes your personality","Whether dressing for yourself versus for others matters more","Sneakers versus any other kind of shoe","Whether fashion says something real about a person","Whether comfort matters more than style","If fashion should be more size inclusive","The most iconic fashion era","Whether social media changed how people dress in real life"]
+// ---------- i18n ----------
+const i18n = {
+  en: {
+    title: "🎤 Off the Cuff",
+    subtitle: "Free impromptu speaking practice",
+    apiKeyLabel: "Groq API key",
+    categoryLabel: "Category",
+    allCategories: "All categories (surprise me)",
+    topicPlaceholder: "Click \"New topic\" to start",
+    newTopicBtn: "🎰 New topic",
+    startRecording: "🔴 Start recording",
+    stopRecording: "⏹ Stop recording",
+    stopOvertime: "⏹ Stop (overtime)",
+    captionToggle: "Enable live captions (beta, can conflict with mic on some phones)",
+    transcriptLabel: "Transcript (auto-filled, editable)",
+    transcriptPlaceholder: "e.g. I defined the topic first, then gave an example from my own experience...",
+    getFeedbackBtn: "Get feedback",
+    legendGood: "= strong parts",
+    legendImprove: "= work on this",
+    analyzing: "Analyzing...",
+    clarity: "Clarity", structure: "Structure", presence: "Presence",
+    noFeedback: "No feedback returned.",
+    errorParsing: "Error parsing feedback: ",
+    pasteKey: "Paste your Groq API key first.",
+    micDenied: "Microphone access denied or unavailable: ",
+    transcribing: "Transcribing...",
+    couldNotTranscribe: "Could not transcribe. Try again.",
+    recordedSize: (kb) => "Recorded audio size: " + kb + " KB",
+    basedOn: (m) => "Based on: " + m.fillerRate + "% filler words, " + m.hedgeCount + " hedging phrases, " + m.transitionCount + " transitions, avg " + m.avgSentenceLength + " words/sentence."
+  },
+  tr: {
+    title: "🎤 Doğaçlama Konuşma",
+    subtitle: "Ücretsiz doğaçlama konuşma pratiği",
+    apiKeyLabel: "Groq API anahtarı",
+    categoryLabel: "Kategori",
+    allCategories: "Tüm kategoriler (sürpriz olsun)",
+    topicPlaceholder: "Başlamak için \"Yeni konu\"ya tıkla",
+    newTopicBtn: "🎰 Yeni konu",
+    startRecording: "🔴 Kaydı başlat",
+    stopRecording: "⏹ Kaydı durdur",
+    stopOvertime: "⏹ Durdur (ek süre)",
+    captionToggle: "Canlı altyazıyı etkinleştir (beta, bazı telefonlarda mikrofonla çakışabilir)",
+    transcriptLabel: "Transkript (otomatik dolar, düzenlenebilir)",
+    transcriptPlaceholder: "örnek: önce konuyu tanımladım, sonra kendi tecrübemden bir örnek verdim...",
+    getFeedbackBtn: "Geri bildirim al",
+    legendGood: "= güçlü kısımlar",
+    legendImprove: "= geliştirilmesi gerekenler",
+    analyzing: "Analiz ediliyor...",
+    clarity: "Netlik", structure: "Yapı", presence: "Sunum",
+    noFeedback: "Geri bildirim alınamadı.",
+    errorParsing: "Geri bildirim ayrıştırma hatası: ",
+    pasteKey: "Önce Groq API anahtarını yapıştır.",
+    micDenied: "Mikrofon erişimi reddedildi ya da kullanılamıyor: ",
+    transcribing: "Transkript oluşturuluyor...",
+    couldNotTranscribe: "Transkript oluşturulamadı. Tekrar dene.",
+    recordedSize: (kb) => "Kaydedilen ses boyutu: " + kb + " KB",
+    basedOn: (m) => "Şu verilere dayanıyor: %" + m.fillerRate + " dolgu kelime, " + m.hedgeCount + " belirsizlik ifadesi, " + m.transitionCount + " bağlaç, ortalama " + m.avgSentenceLength + " kelime/cümle."
+  }
 };
 
-const categorySelect = document.getElementById('category');
-Object.keys(categories).forEach(c => {
-  const opt = document.createElement('option');
-  opt.value = c; opt.textContent = c;
-  categorySelect.appendChild(opt);
-});
+// ---------- Category labels (id -> display name per language) ----------
+const categoryLabels = {
+  en: { teaching:"teaching", everydayLife:"everyday life", generalKnowledge:"general knowledge", personalGrowth:"personal growth", technology:"technology", ai:"artificial intelligence", gaming:"gaming", moviesTv:"movies & tv", books:"books & reading", science:"science", sports:"sports", travel:"travel & culture", socialMedia:"social media & trends", relationships:"relationships & vibes", food:"food & drinks", music:"music & pop culture", hotTakes:"hot takes & would you rather", internet:"internet & memes", fashion:"fashion & aesthetics" },
+  tr: { teaching:"öğretmenlik", everydayLife:"günlük hayat", generalKnowledge:"genel kültür", personalGrowth:"kişisel gelişim", technology:"teknoloji", ai:"yapay zeka", gaming:"oyun", moviesTv:"film ve dizi", books:"kitap ve okuma", science:"bilim", sports:"spor", travel:"seyahat ve kültür", socialMedia:"sosyal medya ve trendler", relationships:"ilişkiler", food:"yemek ve içecek", music:"müzik ve pop kültür", hotTakes:"cesur fikirler ve tercihler", internet:"internet ve meme'ler", fashion:"moda ve estetik" }
+};
 
+// ---------- Topic pools per language ----------
+const topicsByLang = {
+  en: {
+    teaching: ["How would you describe a great teacher","Why the first 5 minutes of class matter","The most effective way to motivate students","How technology has changed classroom management","The hardest situation a teacher can face","What makes a lesson memorable"],
+    everydayLife: ["Your favorite season and why","The most important part of your morning routine","City life versus village life","What you'd do with one extra free day","The most useful skill you've learned recently","A habit you'd like to build this year"],
+    generalKnowledge: ["Books versus films, which impacts people more","The biggest benefit of traveling","The hardest part of learning a new language","Whether handwriting still matters today","What makes a city livable"],
+    personalGrowth: ["How to build self confidence","The most important lesson learned from failure","The challenges of moving to a new city","One way to cope with social anxiety","The most effective habit for reaching your goals","How to stay motivated on a long project"],
+    technology: ["Whether smartphones have made life better or worse","The most useful app you've ever used","Whether social media should have age limits","How self-driving cars will change cities","The biggest tech trend of the last five years","Whether privacy still exists online"],
+    ai: ["Whether AI will take more jobs than it creates","How AI will change education","Whether AI-generated art counts as real art","If you'd trust an AI doctor","Whether AI companions are healthy or concerning","How AI might change how we learn languages"],
+    gaming: ["Whether video games are a legitimate sport","The best game you've ever played and why","Whether gaming helps or hurts social skills","Mobile gaming versus console gaming","Whether loot boxes should be regulated","How gaming has changed in the last decade"],
+    moviesTv: ["A movie that changed how you see something","Whether streaming killed the movie theater","Book adaptations versus the original book","The most overrated movie genre","Whether spoilers really ruin a story","A show you think everyone should watch"],
+    books: ["Physical books versus e-books","A book that changed your perspective","Whether people read less than they used to","Fiction versus non-fiction, which matters more","The last book you couldn't put down","Whether school reading lists should change"],
+    science: ["The most fascinating scientific discovery recently","Whether space exploration is worth the cost","If humans will live on Mars someday","The most interesting fact about the human brain","Whether science and religion can coexist","A scientific myth people still believe"],
+    sports: ["Your favorite sport and why it's exciting","Whether esports should be in the Olympics","Team sports versus individual sports","The most impressive athletic achievement you know of","Whether sports salaries are too high","What makes a great coach"],
+    travel: ["The most interesting place you've visited or want to visit","Whether tourism helps or harms local culture","Street food versus fine dining","The most surprising cultural difference you've learned about","Solo travel versus traveling with others","What you'd want people to know about your city"],
+    socialMedia: ["Whether influencers deserve the money they make","If you'd rather lose your phone for a week or your wallet","Whether cancel culture actually changes anything","TikTok versus Instagram, which shaped culture more","Whether everyone should post their real face online","If FOMO is worse now than it used to be","Whether short-form videos ruined attention spans","If going viral would actually be a good thing for you","Whether online personas are basically fake","Whether everyone secretly wants to be famous online"],
+    relationships: ["Texting versus calling, which shows you care more","Whether opposites really attract","The red flag people ignore the most","If long distance relationships can actually work","Whether you should follow your ex on social media","What makes someone instantly likable","Whether love languages are actually real","Situationships versus just defining the relationship","Whether social media ruins real relationships","What actually makes a first date good or bad"],
+    food: ["Pineapple on pizza, yes or no","The most overrated food everyone loves","Home cooked meals versus eating out","Coffee people versus energy drink people","The weirdest food combo that actually works","Fast food you'd never give up","Cooking trends worth trying versus overhyped","Whether food should be judged by looks on social media","Late night snacks versus a proper meal","Spicy food lovers versus people who can't handle spice"],
+    music: ["Whether lyrics or the beat matters more in a song","Concerts versus festivals","If AI-made music can ever feel real","The most overplayed song of the year","Whether physical albums are coming back","A song that instantly changes your mood","Whether music taste says something about someone's personality","Live performances versus studio versions","Whether nostalgia makes old songs seem better than they are","The most surprising music genre crossover you've heard"],
+    hotTakes: ["Would you rather be famous or rich","Whether you'd delete social media for a million dollars","Text speed versus text quality, which matters more","Would you rather always be 10 minutes late or 20 minutes early","Whether being left on read should still sting","If you could mute one person's opinions forever, would you","Would you rather never use social media again or never watch movies again","Whether small talk is actually useless","If you'd rather always know the truth or always be comfortable","Would you rather have unlimited money or unlimited time","Would you rather be Spider-Man or Thor for a day","Would you rather have Iron Man's suit or Captain America's shield","Would you rather fly like Superman or turn invisible","Would you rather have Batman's gadgets or the Hulk's strength","Would you rather always know when someone is lying to you or be able to lie undetected yourself","Would you rather know the exact date you'll die or never know at all","Would you rather read minds or predict the future","Would you rather have to always say what you're thinking or never speak again","Would you rather give up a personal dream to help many strangers or keep it and help no one","Would you rather be able to fix one person's life completely or slightly improve a hundred lives","Would you rather relive your favorite memory forever or make one brand new unforgettable memory","Would you rather have the power to undo one mistake or predict one future event","Would you rather be forgotten by everyone after you die or be remembered incorrectly","Would you rather always have to tell the truth or never be able to ask a question again","Whether it's ever right to break a promise to prevent a bigger harm","Would you rather lose all your memories from the past year or all your photos from your whole life","Would you rather have the ability to speak every language or play every instrument","Would you rather be feared and respected or liked but never taken seriously","Whether a person should be judged by their intentions or by the actual outcome of their actions","Would you rather live one incredible year and then vanish or live an average life for a hundred years"],
+    internet: ["Whether memes are a legitimate form of communication","The funniest trend you've seen this year","If brainrot is actually changing how people talk","Whether reaction videos add anything to content","The most iconic meme format of all time","If algorithms know you better than your friends do","Whether inside jokes translate well online","If AI filters have changed how people see themselves","The weirdest internet trend that somehow took off","Whether everything eventually becomes a meme"],
+    fashion: ["Whether trends move too fast to keep up with","Thrifting versus buying new","The aesthetic that best describes your personality","Whether dressing for yourself versus for others matters more","Sneakers versus any other kind of shoe","Whether fashion says something real about a person","Whether comfort matters more than style","If fashion should be more size inclusive","The most iconic fashion era","Whether social media changed how people dress in real life"]
+  },
+  tr: {
+    teaching: ["İyi bir öğretmeni nasıl tanımlarsın","Dersin ilk 5 dakikası neden önemlidir","Öğrencileri motive etmenin en etkili yolu","Teknoloji sınıf yönetimini nasıl değiştirdi","Bir öğretmenin karşılaşabileceği en zor durum","Bir dersi akılda kalıcı yapan şey nedir"],
+    everydayLife: ["En sevdiğin mevsim ve nedeni","Sabah rutininin en önemli parçası","Şehir hayatı mı köy hayatı mı","Fazladan bir günün olsa ne yapardın","Son zamanlarda öğrendiğin en faydalı beceri","Bu yıl edinmek istediğin bir alışkanlık"],
+    generalKnowledge: ["Kitaplar mı filmler mi insanları daha çok etkiler","Seyahat etmenin en büyük faydası","Yeni bir dil öğrenmenin en zor kısmı","El yazısının hâlâ önemli olup olmadığı","Bir şehri yaşanabilir yapan şey nedir"],
+    personalGrowth: ["Özgüven nasıl inşa edilir","Başarısızlıktan öğrenilen en önemli ders","Yeni bir şehre taşınmanın zorlukları","Sosyal kaygıyla başa çıkmanın bir yolu","Hedeflerine ulaşmak için en etkili alışkanlık","Uzun bir projede motivasyonu nasıl korursun"],
+    technology: ["Akıllı telefonların hayatı iyileştirip iyileştirmediği","Şimdiye kadar kullandığın en faydalı uygulama","Sosyal medyanın yaş sınırı olması gerekip gerekmediği","Sürücüsüz arabaların şehirleri nasıl değiştireceği","Son beş yılın en büyük teknoloji trendi","İnternette gizliliğin hâlâ var olup olmadığı"],
+    ai: ["Yapay zekanın yarattığından daha fazla iş yok edip etmeyeceği","Yapay zekanın eğitimi nasıl değiştireceği","Yapay zeka ile üretilen sanatın gerçek sanat sayılıp sayılmayacağı","Bir yapay zeka doktoruna güvenip güvenmeyeceğin","Yapay zeka arkadaşlarının sağlıklı mı yoksa endişe verici mi olduğu","Yapay zekanın dil öğrenme şeklimizi nasıl değiştirebileceği"],
+    gaming: ["Video oyunlarının gerçek bir spor sayılıp sayılmayacağı","Şimdiye kadar oynadığın en iyi oyun ve nedeni","Oyun oynamanın sosyal becerilere yardımcı mı yoksa zararlı mı olduğu","Mobil oyun mu konsol oyunu mu","Loot box'ların denetlenmesi gerekip gerekmediği","Oyun dünyasının son on yılda nasıl değiştiği"],
+    moviesTv: ["Bir konuya bakışını değiştiren bir film","Dijital yayın platformlarının sinemaları öldürüp öldürmediği","Kitap uyarlamaları mı orijinal kitap mı","En abartılan film türü","Spoiler'ların gerçekten bir hikayeyi mahvedip mahvetmediği","Herkesin izlemesi gerektiğini düşündüğün bir dizi"],
+    books: ["Basılı kitap mı e-kitap mı","Bakış açını değiştiren bir kitap","İnsanların eskisinden daha az okuyup okumadığı","Kurgu mu kurgu dışı mı daha değerli","Elinden bırakamadığın son kitap","Okul okuma listelerinin değişmesi gerekip gerekmediği"],
+    science: ["Son zamanlardaki en etkileyici bilimsel keşif","Uzay araştırmalarının maliyetine değip değmediği","İnsanların bir gün Mars'ta yaşayıp yaşamayacağı","İnsan beyni hakkında en ilginç gerçek","Bilim ve dinin bir arada var olup olamayacağı","İnsanların hâlâ inandığı bilimsel bir efsane"],
+    sports: ["En sevdiğin spor ve neden heyecan verici olduğu","E-sporun olimpiyatlarda yer alması gerekip gerekmediği","Takım sporları mı bireysel sporlar mı","Bildiğin en etkileyici sportif başarı","Sporcu maaşlarının çok yüksek olup olmadığı","İyi bir antrenörü tanımlayan şey nedir"],
+    travel: ["Gittiğin ya da gitmek istediğin en ilginç yer","Turizmin yerel kültüre yardımcı mı yoksa zararlı mı olduğu","Sokak lezzetleri mi yoksa şık restoranlar mı","Öğrendiğin en şaşırtıcı kültürel fark","Tek başına mı yoksa başkalarıyla mı seyahat etmek","Şehrin hakkında insanların bilmesini istediğin bir şey"],
+    socialMedia: ["Fenomenlerin kazandığı paranın hak edilip edilmediği","Bir hafta telefonunu mu yoksa cüzdanını mı kaybetmeyi tercih edersin","İptal kültürünün gerçekten bir şeyi değiştirip değiştirmediği","TikTok mu Instagram mı kültürü daha çok şekillendirdi","Herkesin gerçek yüzünü paylaşması gerekip gerekmediği","FOMO'nun eskisinden daha kötü olup olmadığı","Kısa videoların dikkat süresini mahvedip mahvetmediği","Viral olmanın senin için gerçekten iyi olup olmayacağı","İnternet kişiliklerinin aslında sahte olup olmadığı","Herkesin gizliden internette ünlü olmak isteyip istemediği"],
+    relationships: ["Mesaj atmak mı arama mı daha çok önemsediğini gösterir","Zıt kutupların gerçekten birbirini çekip çekmediği","İnsanların en çok görmezden geldiği kırmızı bayrak","Uzak mesafe ilişkilerin gerçekten yürüyüp yürümediği","Eski sevgilini sosyal medyada takip etmen gerekip gerekmediği","Birini anında sevimli kılan şey nedir","Aşk dillerinin gerçekten var olup olmadığı","Durumsal ilişkiler mi yoksa ilişkiyi net tanımlamak mı","Sosyal medyanın gerçek ilişkileri mahvedip mahvetmediği","İlk buluşmayı gerçekten iyi ya da kötü yapan şey nedir"],
+    food: ["Ananaslı pizza, evet mi hayır mı","Herkesin sevdiği ama aslında abartılan bir yemek","Ev yemeği mi yoksa dışarıda yemek mi","Kahve insanları mı enerji içeceği insanları mı","Gerçekten işe yarayan en garip yemek kombinasyonu","Asla vazgeçemeyeceğin bir fast food","Denemeye değer mi yoksa abartılmış mı yemek trendleri","Yemeğin sosyal medyada göründüğü hale göre yargılanıp yargılanmaması","Gece atıştırmalıkları mı yoksa düzgün bir öğün mü","Acı seven insanlar mı acıya dayanamayanlar mı"],
+    music: ["Bir şarkıda sözlerin mi ritmin mi daha önemli olduğu","Konser mi festival mi","Yapay zekayla yapılan müziğin gerçek hissettirip hissettirmeyeceği","Yılın en çok çalınan ama sıkıcı şarkısı","Fiziksel albümlerin geri gelip gelmediği","Anında ruh halini değiştiren bir şarkı","Müzik zevkinin biri hakkında bir şey söyleyip söylemediği","Canlı performanslar mı stüdyo kayıtları mı","Nostaljinin eski şarkıları olduğundan daha iyi gösterip göstermediği","Duyduğun en şaşırtıcı müzik türü karışımı"],
+    hotTakes: ["Ünlü mü olmak istersin zengin mi olmak","Bir milyon dolar için sosyal medyayı siler miydin","Mesaj hızı mı yoksa mesaj kalitesi mi daha önemli","Her zaman 10 dakika geç mi yoksa 20 dakika erken mi olmak istersin","Görülüp cevapsız bırakılmanın hâlâ acıtması gerekip gerekmediği","Birinin fikirlerini sonsuza dek susturabilseydin susturur muydun","Bir daha asla sosyal medya mı yoksa bir daha asla film izlememek mi","Küçük sohbetlerin gerçekten anlamsız olup olmadığı","Her zaman gerçeği bilmek mi yoksa her zaman rahat olmak mı","Sınırsız para mı yoksa sınırsız zaman mı","Bir günlüğüne Spider-Man mi olmak istersin Thor mu","Iron Man'in zırhı mı yoksa Captain America'nın kalkanı mı","Superman gibi uçmak mı yoksa görünmez olmak mı","Batman'in aletleri mi yoksa Hulk'un gücü mü","Birinin yalan söylediğini her zaman anlamak mı yoksa fark edilmeden yalan söyleyebilmek mi","Öleceğin kesin tarihi bilmek mi yoksa hiç bilmemek mi","Zihin okumak mı yoksa geleceği görmek mi","Aklından geçeni her zaman söylemek zorunda olmak mı yoksa bir daha asla konuşamamak mı","Bir hayalinden vazgeçip birçok yabancıya yardım etmek mi yoksa hayalini tutup kimseye yardım etmemek mi","Bir kişinin hayatını tamamen düzeltmek mi yoksa yüz kişinin hayatını biraz iyileştirmek mi","En sevdiğin anıyı sonsuza kadar tekrar yaşamak mı yoksa yepyeni unutulmaz bir anı yaratmak mı","Bir hatanı geri almak mı yoksa bir geleceği önceden görmek mi","Öldükten sonra herkes tarafından unutulmak mı yoksa yanlış hatırlanmak mı","Her zaman doğruyu söylemek zorunda olmak mı yoksa bir daha asla soru soramamak mı","Daha büyük bir zararı önlemek için bir sözü bozmanın haklı olup olmadığı","Geçen yılın tüm anılarını mı yoksa tüm hayatının fotoğraflarını mı kaybetmek","Her dili konuşabilmek mi yoksa her enstrümanı çalabilmek mi","Korkulup saygı duyulmak mı yoksa sevilip ama ciddiye alınmamak mı","Bir kişinin niyetine göre mi yoksa eylemlerinin gerçek sonucuna göre mi yargılanması gerektiği","Muhteşem bir yıl yaşayıp sonra kaybolmak mı yoksa yüz yıl sıradan bir hayat sürmek mi"],
+    internet: ["Meme'lerin gerçek bir iletişim biçimi olup olmadığı","Bu yıl gördüğün en komik trend","Beyin çürütmenin insanların konuşma şeklini gerçekten değiştirip değiştirmediği","Tepki videolarının içeriğe bir şey katıp katmadığı","Tüm zamanların en ikonik meme formatı","Algoritmaların seni arkadaşlarından daha iyi tanıyıp tanımadığı","İçeriden şakaların internette iyi çevrilip çevrilmediği","Yapay zeka filtrelerinin insanların kendilerini görme şeklini değiştirip değiştirmediği","Bir anda patlayan en tuhaf internet trendi","Her şeyin sonunda bir meme'e dönüşüp dönüşmediği"],
+    fashion: ["Trendlerin takip edilemeyecek kadar hızlı değişip değişmediği","İkinci el mi yoksa yeni almak mı","Kişiliğini en iyi tanımlayan estetik","Kendin için mi yoksa başkaları için mi giyinmenin daha önemli olduğu","Spor ayakkabı mı yoksa başka bir ayakkabı türü mü","Modanın bir insan hakkında gerçek bir şey söyleyip söylemediği","Konforun stilden daha önemli olup olmadığı","Modanın daha beden kapsayıcı olması gerekip gerekmediği","En ikonik moda dönemi","Sosyal medyanın insanların gerçek hayatta giyiniş şeklini değiştirip değiştirmediği"]
+  }
+};
+
+let currentLang = localStorage.getItem('otc_lang') || 'en';
+
+const categorySelect = document.getElementById('category');
+const topicEl = document.getElementById('topic');
 const apiKeyInput = document.getElementById('apiKey');
-apiKeyInput.value = localStorage.getItem('groq_api_key') || '';
-apiKeyInput.addEventListener('input', () => localStorage.setItem('groq_api_key', apiKeyInput.value));
+
+function rebuildCategorySelect() {
+  categorySelect.innerHTML = '';
+  const allOpt = document.createElement('option');
+  allOpt.value = 'all';
+  allOpt.textContent = i18n[currentLang].allCategories;
+  categorySelect.appendChild(allOpt);
+  Object.keys(categoryLabels[currentLang]).forEach(id => {
+    const opt = document.createElement('option');
+    opt.value = id;
+    opt.textContent = categoryLabels[currentLang][id];
+    categorySelect.appendChild(opt);
+  });
+}
+
+function applyLanguage(lang) {
+  currentLang = lang;
+  localStorage.setItem('otc_lang', lang);
+  document.getElementById('langEN').classList.toggle('active', lang === 'en');
+  document.getElementById('langTR').classList.toggle('active', lang === 'tr');
+  const t = i18n[lang];
+  document.getElementById('titleEl').textContent = t.title;
+  document.getElementById('subtitleEl').textContent = t.subtitle;
+  document.getElementById('apiKeyLabel').textContent = t.apiKeyLabel;
+  document.getElementById('categoryLabel').textContent = t.categoryLabel;
+  rebuildCategorySelect();
+  topicEl.textContent = t.topicPlaceholder;
+  document.getElementById('newTopicBtn').innerHTML = t.newTopicBtn;
+  if (!(mediaRecorder && mediaRecorder.state === 'recording')) {
+    recordBtn.textContent = t.startRecording;
+  }
+  document.getElementById('captionLabelText').textContent = t.captionToggle;
+  document.getElementById('transcriptLabel').textContent = t.transcriptLabel;
+  document.getElementById('transcript').placeholder = t.transcriptPlaceholder;
+  document.getElementById('feedbackBtn').textContent = t.getFeedbackBtn;
+  document.getElementById('legendGoodText').textContent = t.legendGood;
+  document.getElementById('legendImproveText').textContent = t.legendImprove;
+  lastTopic = null;
+}
+
+document.getElementById('langEN').onclick = () => applyLanguage('en');
+document.getElementById('langTR').onclick = () => applyLanguage('tr');
 
 function getTopicPool() {
   const cat = categorySelect.value;
-  if (cat === 'all') return Object.values(categories).flat();
-  return categories[cat];
+  const pool = topicsByLang[currentLang];
+  if (cat === 'all') return Object.values(pool).flat();
+  return pool[cat];
 }
 
 // ---------- Web Audio: casino tick / chime ----------
@@ -212,7 +341,6 @@ function playChime() {
 }
 
 // ---------- Slot-style topic spin ----------
-const topicEl = document.getElementById('topic');
 let spinning = false;
 let lastTopic = null;
 
@@ -241,7 +369,7 @@ document.getElementById('newTopicBtn').onclick = () => {
     playTick(500 + Math.random() * 300);
     step++;
     const progress = step / totalSteps;
-    const delay = 45 + Math.pow(progress, 3) * 480; // slow, dramatic ease-out
+    const delay = 45 + Math.pow(progress, 3) * 480;
     setTimeout(spinStep, delay);
   }
   spinStep();
@@ -263,7 +391,7 @@ function startLiveCaption() {
   recognition = new SpeechRec();
   recognition.continuous = true;
   recognition.interimResults = true;
-  recognition.lang = 'en-US';
+  recognition.lang = currentLang === 'tr' ? 'tr-TR' : 'en-US';
   let finalText = '';
   liveCaptionEl.classList.remove('hidden');
   liveCaptionEl.innerHTML = '';
@@ -281,15 +409,6 @@ function startLiveCaption() {
   };
   recognition.onerror = (e) => {
     document.getElementById('debugInfo').textContent = 'Caption error: ' + e.error;
-  };
-  recognition.onstart = () => {
-    document.getElementById('debugInfo').textContent = 'Caption listening...';
-  };
-  recognition.onspeechstart = () => {
-    document.getElementById('debugInfo').textContent = 'Caption: speech detected';
-  };
-  recognition.onaudiostart = () => {
-    document.getElementById('debugInfo').textContent = 'Caption: mic connected, listening...';
   };
   recognition.onend = () => {
     if (mediaRecorder && mediaRecorder.state === 'recording') {
@@ -326,7 +445,7 @@ function tick() {
       timeLeft = 0;
       timerEl.classList.add('overtime');
       recordBtn.classList.add('recording');
-      recordBtn.textContent = '⏹ Stop (overtime)';
+      recordBtn.textContent = i18n[currentLang].stopOvertime;
     }
     timerEl.textContent = formatTime(timeLeft);
   } else {
@@ -341,11 +460,6 @@ recordBtn.onclick = async () => {
     return;
   }
   try {
-    const captionOn = document.getElementById('captionToggle').checked;
-    if (captionOn) {
-      startLiveCaption();
-      await new Promise(r => setTimeout(r, 350));
-    }
     const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
     chunks = [];
     mediaRecorder = new MediaRecorder(stream);
@@ -357,15 +471,16 @@ recordBtn.onclick = async () => {
       stream.getTracks().forEach(t => t.stop());
       clearInterval(timerInterval);
       stopLiveCaption();
-      recordBtn.textContent = '🔴 Start recording';
+      recordBtn.textContent = i18n[currentLang].startRecording;
       recordBtn.classList.remove('recording');
       timerEl.classList.remove('overtime');
       const blob = new Blob(chunks, { type: 'audio/webm' });
-      document.getElementById('debugInfo').textContent = 'Recorded audio size: ' + (blob.size / 1024).toFixed(1) + ' KB';
+      document.getElementById('debugInfo').textContent = i18n[currentLang].recordedSize((blob.size / 1024).toFixed(1));
       await transcribe(blob);
     };
     mediaRecorder.start();
-    recordBtn.textContent = '⏹ Stop recording';
+    setTimeout(() => startLiveCaption(), 400);
+    recordBtn.textContent = i18n[currentLang].stopRecording;
     recordBtn.classList.add('recording');
     timeLeft = 60;
     overtime = false;
@@ -373,18 +488,19 @@ recordBtn.onclick = async () => {
     timerEl.textContent = formatTime(timeLeft);
     timerInterval = setInterval(tick, 1000);
   } catch (e) {
-    alert('Microphone access denied or unavailable: ' + e.message);
+    alert(i18n[currentLang].micDenied + e.message);
   }
 };
 
 async function transcribe(blob) {
   const key = apiKeyInput.value.trim();
-  if (!key) { alert('Paste your Groq API key first.'); return; }
+  if (!key) { alert(i18n[currentLang].pasteKey); return; }
   const form = new FormData();
   form.append('file', blob, 'recording.webm');
   form.append('model', 'whisper-large-v3-turbo');
+  form.append('language', currentLang === 'tr' ? 'tr' : 'en');
   document.getElementById('transcriptCard').classList.remove('hidden');
-  document.getElementById('transcript').value = 'Transcribing...';
+  document.getElementById('transcript').value = i18n[currentLang].transcribing;
   try {
     const res = await fetch('https://api.groq.com/openai/v1/audio/transcriptions', {
       method: 'POST',
@@ -392,7 +508,7 @@ async function transcribe(blob) {
       body: form
     });
     const data = await res.json();
-    document.getElementById('transcript').value = data.text || 'Could not transcribe. Try again.';
+    document.getElementById('transcript').value = data.text || i18n[currentLang].couldNotTranscribe;
   } catch (e) {
     document.getElementById('transcript').value = 'Error: ' + e.message;
   }
@@ -414,14 +530,21 @@ function analyzeText(transcript) {
     return total;
   }
 
-  const fillerCount = countPhrases(['um','uh','er','ah','like','you know','kind of','sort of','actually','basically','literally','i mean']);
-  const hedgeCount = countPhrases(['i think','i guess','maybe','probably','not sure','might','i suppose','i feel like']);
-  const transitionCount = countPhrases(['first','second','third','finally','however','because','therefore','for example','in addition','also','overall','in conclusion','moreover','furthermore','so then']);
+  const fillerListEn = ['um','uh','er','ah','like','you know','kind of','sort of','actually','basically','literally','i mean'];
+  const fillerListTr = ['ıı','şey','yani','işte','falan','filan','aslında','böyle'];
+  const hedgeListEn = ['i think','i guess','maybe','probably','not sure','might','i suppose','i feel like'];
+  const hedgeListTr = ['sanırım','galiba','belki','emin değilim','herhalde'];
+  const transitionListEn = ['first','second','third','finally','however','because','therefore','for example','in addition','also','overall','in conclusion','moreover','furthermore','so then'];
+  const transitionListTr = ['ilk olarak','ikinci olarak','ayrıca','fakat','ancak','çünkü','bu yüzden','örneğin','sonuç olarak','öncelikle'];
+
+  const fillerCount = countPhrases(currentLang === 'tr' ? fillerListTr : fillerListEn);
+  const hedgeCount = countPhrases(currentLang === 'tr' ? hedgeListTr : hedgeListEn);
+  const transitionCount = countPhrases(currentLang === 'tr' ? transitionListTr : transitionListEn);
 
   const sentences = transcript.split(/[.!?]+/).map(s => s.trim()).filter(Boolean);
   const sentenceCount = Math.max(sentences.length, 1);
   const avgSentenceLength = +(wordCount / sentenceCount).toFixed(1);
-  const uniqueWords = new Set(words.map(w => w.toLowerCase().replace(/[^a-z']/g, ''))).size;
+  const uniqueWords = new Set(words.map(w => w.toLowerCase().replace(/[^a-zçğıöşü']/g, ''))).size;
   const uniqueRatio = +(uniqueWords / wordCount).toFixed(2);
   const fillerRate = +((fillerCount / wordCount) * 100).toFixed(1);
 
@@ -458,23 +581,26 @@ document.getElementById('feedbackBtn').onclick = async () => {
   const metricsNote = document.getElementById('metricsNote');
   feedbackCard.classList.remove('hidden');
   scoreRow.innerHTML = '';
-  feedbackText.textContent = 'Analyzing...';
+  feedbackText.textContent = i18n[currentLang].analyzing;
   highlightedBox.textContent = '';
   metricsNote.textContent = '';
 
   const m = analyzeText(transcript);
   const b = baselineScores(m);
+  const outputLangInstruction = currentLang === 'tr'
+    ? 'Write "overall_feedback" and highlight "note" fields in Turkish.'
+    : 'Write "overall_feedback" and highlight "note" fields in English.';
 
-  const prompt = `You are a rigorous speaking coach scoring a 1-minute impromptu speech. Be honest and specific, not generic or flattering.
+  const prompt = `You are a rigorous speaking coach scoring a 1-minute impromptu speech. Be honest and specific, not generic or flattering. ${outputLangInstruction}
 
 Topic: "${topic}"
 Transcript: "${transcript}"
 
 Computed linguistic metrics (calculated deterministically, use these as your PRIMARY scoring basis, not vibes):
 - Word count: ${m.wordCount}
-- Filler words (um, uh, like, you know, kind of, actually, etc): ${m.fillerCount} (${m.fillerRate}% of words)
-- Hedging phrases (I think, maybe, probably, not sure, etc): ${m.hedgeCount}
-- Transition/structuring words (first, however, because, for example, etc): ${m.transitionCount}
+- Filler words: ${m.fillerCount} (${m.fillerRate}% of words)
+- Hedging phrases: ${m.hedgeCount}
+- Transition/structuring words: ${m.transitionCount}
 - Sentences: ${m.sentenceCount}, average length: ${m.avgSentenceLength} words/sentence
 - Vocabulary diversity (unique word ratio): ${m.uniqueRatio}
 
@@ -488,7 +614,7 @@ Your task: read the actual content and adjust each baseline by at most ±10 poin
 Respond with ONLY valid JSON, no markdown fences, no extra text, matching exactly this schema:
 {
   "scores": {"clarity": <integer>, "structure": <integer>, "presence": <integer>},
-  "overall_feedback": "<3-5 sentences, written as direct imperative instructions ('Open with...', 'Cut the...', 'Add a...', 'Stop hedging on...') rather than describing what they did. Reference at least one specific number from the metrics above (e.g. filler rate or transition count) to justify a point.>",
+  "overall_feedback": "<3-5 sentences, written as direct imperative instructions rather than describing what they did. Reference at least one specific number from the metrics above to justify a point.>",
   "highlights": [
     {"text": "<exact short substring copied verbatim from the transcript, 3-10 words>", "type": "good", "note": "<3-6 word reason>"},
     {"text": "<exact short substring copied verbatim from the transcript, 3-10 words>", "type": "improve", "note": "<3-6 word reason>"}
@@ -511,14 +637,15 @@ Include 2-4 "good" highlights and 2-4 "improve" highlights, each copied characte
     raw = raw.trim().replace(/^```json/, '').replace(/^```/, '').replace(/```$/, '').trim();
     const parsed = JSON.parse(raw);
 
-    const labels = { clarity: 'Clarity', structure: 'Structure', presence: 'Presence' };
+    const t = i18n[currentLang];
+    const labels = { clarity: t.clarity, structure: t.structure, presence: t.presence };
     scoreRow.innerHTML = Object.keys(labels).map(k => {
       const val = parsed.scores?.[k] ?? '-';
       const color = val >= 80 ? '#6ee7b7' : val >= 60 ? '#fbbf24' : '#fca5a5';
       return `<div class="score-box"><div class="score-num" style="color:${color}">${val}</div><div class="score-label">${labels[k]}</div></div>`;
     }).join('');
 
-    feedbackText.textContent = parsed.overall_feedback || 'No feedback returned.';
+    feedbackText.textContent = parsed.overall_feedback || t.noFeedback;
 
     let highlighted = transcript;
     (parsed.highlights || []).forEach(h => {
@@ -530,11 +657,16 @@ Include 2-4 "good" highlights and 2-4 "improve" highlights, each copied characte
     });
     highlightedBox.innerHTML = highlighted;
 
-    metricsNote.textContent = `Based on: ${m.fillerRate}% filler words, ${m.hedgeCount} hedging phrases, ${m.transitionCount} transitions, avg ${m.avgSentenceLength} words/sentence.`;
+    metricsNote.textContent = t.basedOn(m);
   } catch (e) {
-    feedbackText.textContent = 'Error parsing feedback: ' + e.message;
+    feedbackText.textContent = i18n[currentLang].errorParsing + e.message;
   }
 };
+
+// ---------- Init ----------
+apiKeyInput.value = localStorage.getItem('groq_api_key') || '';
+apiKeyInput.addEventListener('input', () => localStorage.setItem('groq_api_key', apiKeyInput.value));
+applyLanguage(currentLang);
 </script>
 </body>
 </html>
